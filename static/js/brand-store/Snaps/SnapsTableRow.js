@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useParams } from "react-router-dom";
 import { format } from "date-fns";
-import { CheckboxInput } from "@canonical/react-components";
+import { Input } from "@canonical/react-components";
 
 function SnapsTableRow({
   storeName,
@@ -16,7 +16,22 @@ function SnapsTableRow({
 }) {
   const { id } = useParams();
 
+  const [isChecked, setIsChecked] = useState(false);
+
   const tableCellClass = isOnlyViewer() ? "" : "table-cell--checkbox";
+
+  const snapName =
+    storeId === "ubuntu" ? (
+      <a href={`https://snapcraft.io/${snap.name}`}>{snap.name}</a>
+    ) : (
+      snap.name || "-"
+    );
+
+  useEffect(() => {
+    setIsChecked(
+      snapsToRemove.find((item) => item.id === snap.id) ? true : false
+    );
+  }, [snapsToRemove]);
 
   return (
     <tr>
@@ -30,7 +45,8 @@ function SnapsTableRow({
       </td>
       <td data-heading="Name" className={tableCellClass}>
         {storeId !== id && !snap.essential && !isOnlyViewer() ? (
-          <CheckboxInput
+          <Input
+            type="checkbox"
             onChange={(e) => {
               if (e.target.checked) {
                 setSnapsToRemove([].concat(snapsToRemove, [snap]));
@@ -40,15 +56,11 @@ function SnapsTableRow({
                 ]);
               }
             }}
-            checked={snapsToRemove.find((item) => item.id === snap.id)}
+            checked={isChecked}
+            label={snapName}
           />
-        ) : null}
-        {storeId === "ubuntu" ? (
-          <a href={`https://dashboard.snapcraft.io/snaps/${snap.name}`}>
-            {snap.name || "-"}
-          </a>
         ) : (
-          snap.name || "-"
+          <span style={{ marginLeft: "0.5rem" }}>{snapName}</span>
         )}
       </td>
       <td data-heading="Latest release">

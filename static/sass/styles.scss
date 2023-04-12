@@ -6,8 +6,7 @@ $color-navigation-active-bar: $ubuntu-orange;
 $color-sidenav-item-border-highlight: #82bfa1;
 
 // navigation variables
-$theme-default-nav: dark;
-$breakpoint-navigation-threshold: 800px;
+$breakpoint-navigation-threshold: 1036px;
 $font-display-option: swap;
 
 // responsive
@@ -52,10 +51,11 @@ $color-social-icon-foreground: $color-light;
 @include vf-p-tabs;
 @include vf-p-table-icons;
 @include vf-p-side-navigation;
+@include vf-p-side-navigation-expandable;
 @include vf-p-search-box;
 @include vf-p-form-tick-elements;
-
-// vanilla utilities
+@include vf-p-status-label;
+@include vf-p-switch;
 @include vf-u-floats;
 @include vf-u-off-screen;
 @include vf-u-margin-collapse;
@@ -237,6 +237,8 @@ $color-social-icon-foreground: $color-light;
 @include vf-p-icon-exposed;
 @include vf-p-icon-topic;
 @include vf-p-icon-revisions;
+@import "snapcraft_snap-image-upload";
+@include snap-image-upload;
 
 dl {
   margin-bottom: $spv--x-large;
@@ -343,9 +345,9 @@ code {
   }
 }
 
-.members-accordion {
+.app-accordion {
   .p-accordion__panel {
-    padding-left: 0;
+    padding-left: 2.5rem;
   }
 }
 
@@ -402,4 +404,18 @@ code {
 
 .external-link-protocol--negative {
   color: $color-negative;
+}
+
+.u-screenreader-only {
+  height: 1px;
+  left: -10000px;
+  overflow: hidden;
+  position: absolute;
+  top: auto;
+  width: 1px;
+}
+
+// Needed to override as the accent color is different on this site
+.p-navigation__tagged-logo .p-navigation__logo-tag {
+  background-color: $ubuntu-orange;
 }

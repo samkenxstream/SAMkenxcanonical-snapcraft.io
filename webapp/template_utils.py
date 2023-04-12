@@ -4,6 +4,8 @@ import os
 
 from dateutil import parser
 
+from emoji import replace_emoji
+
 
 # generator functions for templates
 def generate_slug(path):
@@ -36,6 +38,9 @@ def generate_slug(path):
 
     if path.startswith("/iot"):
         return "iot"
+
+    if path.startswith("/docs/snap-tutorials"):
+        return "tutorials"
 
     if path.startswith("/docs"):
         return "docs"
@@ -112,10 +117,18 @@ def format_number(number: int):
     return "{:,}".format(number)
 
 
+def format_display_name(display_name):
+    """Template function that formats the displayed name
+    primarily to remove emoji
+    """
+    return replace_emoji(display_name, replace="")
+
+
 def display_name(display_name, username):
     """Template function that returns the displayed name if the username
     is the same, or the dispayed name and the username if differents
     """
+    display_name = format_display_name(display_name)
     if display_name.lower() == username.lower():
         return display_name
     else:

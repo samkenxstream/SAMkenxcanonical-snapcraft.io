@@ -16,6 +16,36 @@ const licenseSort = (a: License, b: License) => {
 };
 
 function getListingData(listingData: { [key: string]: any }) {
+  let images = [];
+
+  if (window?.listingData?.icon_url) {
+    images.push({
+      url: window?.listingData?.icon_url,
+      type: "icon",
+      status: "uploaded",
+    });
+  }
+
+  if (window?.listingData?.banner_urls.length) {
+    images.push({
+      url: window?.listingData?.banner_urls[0],
+      type: "banner",
+      status: "uploaded",
+    });
+  }
+
+  if (window?.listingData?.screenshot_urls) {
+    images = images.concat(
+      window?.listingData?.screenshot_urls.map((url: string) => {
+        return {
+          url,
+          type: "screenshot",
+          status: "uploaded",
+        };
+      })
+    );
+  }
+
   return {
     snap_name: listingData?.snap_name,
     title: listingData?.snap_title,
@@ -24,13 +54,12 @@ function getListingData(listingData: { [key: string]: any }) {
     website: listingData?.website,
     contact: listingData?.contact,
     categories: listingData?.categories,
-    images: [],
     public_metrics_enabled: listingData?.public_metrics_enabled,
     public_metrics_blacklist: listingData?.public_metrics_blacklist,
     license: listingData?.license,
     license_type: listingData?.license_type,
     licenses: listingData?.licenses.sort(licenseSort),
-    video_urls: listingData?.video_urls[0],
+    video_urls: listingData?.video_urls[0] || "",
     "primary-category": listingData?.snap_categories?.categories[0],
     "secondary-category": listingData?.snap_categories?.categories[1],
     public_metrics_territories: !listingData?.public_metrics_blacklist.includes(
@@ -65,6 +94,21 @@ function getListingData(listingData: { [key: string]: any }) {
         url: link,
       };
     }),
+    banner_urls: window?.listingData?.banner_urls,
+    icon_url: window?.listingData?.icon_url,
+    screenshot_urls: window?.listingData?.screenshot_urls,
+    icon: new File([], ""),
+    banner_url: window?.listingData?.banner_urls[0],
+    banner: new File([], ""),
+    screenshots: [
+      new File([], ""),
+      new File([], ""),
+      new File([], ""),
+      new File([], ""),
+      new File([], ""),
+    ],
+    images,
+    snap_categories: window?.listingData?.snap_categories?.categories,
   };
 }
 

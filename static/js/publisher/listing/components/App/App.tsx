@@ -8,10 +8,17 @@ import {
   Button,
 } from "@canonical/react-components";
 
-import { getChanges, getFormData, getListingData } from "../../utils";
+import {
+  getChanges,
+  getFormData,
+  getListingData,
+  shouldShowUpdateMetadataWarning,
+} from "../../utils";
+import { initListingTour } from "../../../tour";
 
-import PageHeader from "../PageHeader";
-import SaveAndPreview from "../SaveAndPreview";
+import PageHeader from "../../../shared/PageHeader";
+import SaveAndPreview from "../../../shared/SaveAndPreview";
+import UpdateMetadataModal from "../../../shared/UpdateMetadataModal";
 import ListingDetailsSection from "../../sections/ListingDetailsSection";
 import ContactInformationSection from "../../sections/ContactInformationSection";
 import AdditionalInformationSection from "../../sections/AdditionalInformationSection";
@@ -21,6 +28,7 @@ function App() {
   const snapId = window?.listingData?.snap_id;
   const publisherName = window?.listingData?.publisher_name;
   const categories = window?.listingData?.categories;
+  const tourSteps = window?.tourSteps;
 
   const [listingData, setListingData] = useState(
     getListingData(window?.listingData)
@@ -45,6 +53,7 @@ function App() {
     watch,
     setValue,
     control,
+    getValues,
     formState,
   } = useForm({ defaultValues: listingData, mode: "onChange" });
 
@@ -53,7 +62,10 @@ function App() {
   const dirtyFields: { [key: string]: any } = formState.dirtyFields;
 
   const onSubmit = (data: any) => {
-    if (listingData?.update_metadata_on_release) {
+    if (
+      listingData?.update_metadata_on_release &&
+      shouldShowUpdateMetadataWarning(dirtyFields)
+    ) {
       setShowMetadataWarningModal(true);
       setFormData(data);
     } else {
@@ -65,19 +77,24 @@ function App() {
     const changes = getChanges(dirtyFields, data);
     const formData = getFormData(data, snapId, changes);
 
+    const previousDirtyFields = Object.assign({}, dirtyFields);
+
     setIsSaving(true);
 
     fetch(`/${data.snap_name}/listing`, {
       method: "POST",
       body: formData,
     }).then((response) => {
+      if (shouldShowUpdateMetadataWarning(previousDirtyFields)) {
+        setUpdateMetadataOnRelease(false);
+      }
+
       if (response.status === 200) {
         setTimeout(() => {
           setIsSaving(false);
           setHasSaved(true);
           reset(data);
           window.scrollTo(0, 0);
-          setUpdateMetadataOnRelease(false);
         }, 1000);
       } else {
         setTimeout(() => {
@@ -99,17 +116,31 @@ function App() {
     };
   }, [watch]);
 
+  useEffect(() => {
+    initListingTour({
+      snapName: listingData?.snap_name,
+      container: document.getElementById("tour-container"),
+      formFields: listingData,
+      steps: tourSteps,
+    });
+  }, [listingData]);
+
   return (
     <>
-      <PageHeader snapName={listingData?.snap_name} />
+      <PageHeader snapName={listingData?.snap_name} activeTab="listing" />
 
-      <Form onSubmit={handleSubmit(onSubmit)} stacked={true}>
+      <Form
+        onSubmit={handleSubmit(onSubmit)}
+        stacked={true}
+        encType="multipart/form-data"
+      >
         <SaveAndPreview
           snapName={listingData?.snap_name}
           isDirty={isDirty}
           reset={reset}
           isSaving={isSaving}
           isValid={isValid}
+          showPreview={true}
         />
 
         {updateMetadataOnRelease && (
@@ -131,41 +162,11 @@ function App() {
             </section>
 
             {showMetadataWarningModal ? (
-              <Modal
-                close={() => {
-                  setShowMetadataWarningModal(false);
-                }}
-                title="Warning"
-                buttonRow={
-                  <>
-                    <Button
-                      type="button"
-                      className="u-no-margin--bottom"
-                      onClick={() => {
-                        setShowMetadataWarningModal(false);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      className="u-no-margin--bottom u-no-margin--right"
-                      appearance="positive"
-                      onClick={() => {
-                        submitForm(formData);
-                        setShowMetadataWarningModal(false);
-                      }}
-                    >
-                      Save changes
-                    </Button>
-                  </>
-                }
-              >
-                <p>
-                  Making these changes means that the snap will no longer use
-                  the data from snapcraft.yaml.
-                </p>
-              </Modal>
+              <UpdateMetadataModal
+                setShowMetadataWarningModal={setShowMetadataWarningModal}
+                submitForm={submitForm}
+                formData={formData}
+              />
             ) : null}
           </>
         )}
@@ -203,6 +204,10 @@ function App() {
             categories={categories}
             primaryCategory={listingData?.["primary-category"]}
             secondaryCategory={listingData?.["secondary-category"]}
+            iconUrl={listingData?.icon_url}
+            bannerUrl={listingData?.banner_url}
+            control={control}
+            getValues={getValues}
           />
           <Strip shallow={true}>
             <div className="u-fixed-width">
@@ -232,6 +237,8 @@ function App() {
         </Strip>
       </Form>
       <PreviewForm listingData={listingData} />
+
+      <div id="tour-container" />
     </>
   );
 }

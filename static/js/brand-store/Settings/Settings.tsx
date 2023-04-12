@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { useParams, Redirect } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom";
 import { useAppDispatch } from "../hooks";
 import {
   Form,
@@ -18,6 +18,7 @@ import { fetchMembers } from "../slices/membersSlice";
 import { fetchStore } from "../slices/currentStoreSlice";
 
 import SectionNav from "../SectionNav";
+import StoreNotFound from "../StoreNotFound";
 
 import type { RouteParams, Member } from "../types/shared";
 
@@ -29,10 +30,12 @@ export type RootState = {
       "manual-review-policy": string;
     };
     loading: Boolean;
+    notFound: Boolean;
   };
   members: {
     members: Array<{}>;
     loading: Boolean;
+    notFound: Boolean;
   };
 };
 
@@ -44,6 +47,12 @@ function Settings() {
   );
   const membersLoading = useSelector(
     (state: RootState) => state.members.loading
+  );
+  const storeNotFound = useSelector(
+    (state: RootState) => state.currentStore.notFound
+  );
+  const membersNotFound = useSelector(
+    (state: RootState) => state.members.notFound
   );
   const dispatch = useAppDispatch();
   const { id } = useParams<RouteParams>();
@@ -62,7 +71,7 @@ function Settings() {
 
     const settingsData = new FormData();
     settingsData.set("csrf_token", window.CSRF_TOKEN);
-    settingsData.set("store-id", id);
+    settingsData.set("store-id", id!);
     settingsData.set("private", isPrivateStore.toString());
     settingsData.set("manual-review-policy", manualReviewPolicy);
 
@@ -78,7 +87,7 @@ function Settings() {
         }
       })
       .then((data) => {
-        dispatch(fetchStore(id));
+        dispatch(fetchStore(id!));
 
         // Add timeout so that the user has time to notice the save action
         // in the event of it happening very fast
@@ -119,8 +128,8 @@ function Settings() {
     currentMember?.roles.length === 1 && currentMember?.roles.includes("view");
 
   useEffect(() => {
-    dispatch(fetchMembers(id));
-    dispatch(fetchStore(id));
+    dispatch(fetchMembers(id!));
+    dispatch(fetchStore(id!));
   }, [id]);
 
   useEffect(() => {
@@ -137,14 +146,18 @@ function Settings() {
       <div className="p-panel--settings">
         <div className="p-panel__content">
           <div className="u-fixed-width">
-            <SectionNav sectionName="settings" />
+            {!storeNotFound && !membersNotFound && (
+              <SectionNav sectionName="settings" />
+            )}
           </div>
           {storeLoading && membersLoading && !isSaving ? (
             <div className="u-fixed-width">
               <Spinner text="Loading&hellip;" />
             </div>
+          ) : storeNotFound || membersNotFound ? (
+            <StoreNotFound />
           ) : isOnlyViewer() ? (
-            <Redirect to={`/admin/${id}/snaps`} />
+            <Navigate to={`/admin/${id}/snaps`} />
           ) : (
             <Row>
               <Col size={7}>

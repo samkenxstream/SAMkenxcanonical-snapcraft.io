@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import {
   Spinner,
@@ -7,6 +7,7 @@ import {
   Col,
   Button,
   Notification,
+  Modal,
 } from "@canonical/react-components";
 
 import {
@@ -24,6 +25,7 @@ import SnapsTable from "./SnapsTable";
 import SnapsFilter from "./SnapsFilter";
 import SnapsSearch from "./SnapsSearch";
 import SectionNav from "../SectionNav";
+import StoreNotFound from "../StoreNotFound";
 
 function Snaps() {
   const brandStoresList = useSelector(brandStoresListSelector);
@@ -32,6 +34,8 @@ function Snaps() {
   const snapsLoading = useSelector((state) => state.snaps.loading);
   const storesLoading = useSelector((state) => state.brandStores.loading);
   const membersLoading = useSelector((state) => state.members.loading);
+  const snapsNotFound = useSelector((state) => state.snaps.notFound);
+  const membersNotFound = useSelector((state) => state.members.notFound);
   const dispatch = useDispatch();
   const { id } = useParams();
   const [snapsInStore, setSnapsInStore] = useState([]);
@@ -59,6 +63,10 @@ function Snaps() {
   const [isReviewerAndPublisherOnly, setIsReviewerAndPublisherOnly] = useState(
     false
   );
+  const [
+    showRemoveSnapsConfirmation,
+    setShowRemoveSnapsConfirmation,
+  ] = useState(false);
   const [globalStore, setGlobalStore] = useState(null);
   let location = useLocation();
 
@@ -135,9 +143,7 @@ function Snaps() {
       });
   };
 
-  const removeSnaps = (e) => {
-    e.preventDefault();
-
+  const removeSnaps = () => {
     setRemoveSnapSaving(true);
 
     const removingSnaps = {
@@ -188,7 +194,7 @@ function Snaps() {
     const storeIds = [];
 
     snaps.forEach((snap) => {
-      if (snap["other-stores"].length) {
+      if (snaps["other-stores"] && snap["other-stores"].length) {
         snap["other-stores"].forEach((otherStoreId) => {
           if (otherStoreId !== id && !storeIds.includes(otherStoreId)) {
             storeIds.push(otherStoreId);
@@ -199,6 +205,10 @@ function Snaps() {
 
     return storeIds;
   };
+
+  const includedStores = snaps
+    .filter((snap) => snap["included-stores"])
+    .map((snap) => snap["included-stores"][0]);
 
   useEffect(() => {
     dispatch(fetchMembers(id));
@@ -288,13 +298,18 @@ function Snaps() {
               <Reviewer />
             ) : currentStore && isPublisherOnly ? (
               <Publisher />
+            ) : snapsNotFound || membersNotFound ? (
+              <StoreNotFound />
             ) : (
               <>
-                {!isReloading && !isOnlyViewer() && (
-                  <div className="u-fixed-width">
-                    <SectionNav sectionName="snaps" />
-                  </div>
-                )}
+                {!isReloading &&
+                  !isOnlyViewer() &&
+                  !snapsNotFound &&
+                  !membersNotFound && (
+                    <div className="u-fixed-width">
+                      <SectionNav sectionName="snaps" />
+                    </div>
+                  )}
                 {!isReloading && (
                   <Row>
                     <Col size="6">
@@ -313,7 +328,9 @@ function Snaps() {
                             disabled={
                               snapsToRemove.length < 1 || removeSnapSaving
                             }
-                            onClick={removeSnaps}
+                            onClick={() => {
+                              setShowRemoveSnapsConfirmation(true);
+                            }}
                             className={removeSnapSaving ? "has-icon" : ""}
                           >
                             {removeSnapSaving ? (
@@ -356,9 +373,34 @@ function Snaps() {
                       nonEssentialSnapIds={nonEssentialSnapIds}
                       isOnlyViewer={isOnlyViewer}
                       globalStore={globalStore}
+                      includedStores={includedStores}
                     />
                   )}
                 </div>
+                {!!includedStores.length && (
+                  <div className="u-fixed-width">
+                    <h4>Fully included stores</h4>
+                    <p>
+                      In addition to the snaps listed above, all snaps from the
+                      following stores are also included in {getStoreName(id)}.
+                    </p>
+                    <ul>
+                      {includedStores.map((store) => (
+                        <li key={store.id}>
+                          {store.userHasAccess ? (
+                            <Link to={`/admin/${store.id}/snaps`}>
+                              {store.name}
+                            </Link>
+                          ) : (
+                            <>
+                              {store.name} ({store.id})
+                            </>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -463,6 +505,53 @@ function Snaps() {
           </Notification>
         )}
       </div>
+
+      {showRemoveSnapsConfirmation && (
+        <Modal
+          close={() => {
+            setShowRemoveSnapsConfirmation(false);
+          }}
+          title={`Exclude ${
+            snapsToRemove.length > 1 ? "snaps" : snapsToRemove[0].name
+          }`}
+          buttonRow={
+            <>
+              <Button
+                className="u-no-margin--bottom"
+                onClick={() => {
+                  setShowRemoveSnapsConfirmation(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="u-no-margin--bottom u-no-margin--right"
+                appearance="positive"
+                onClick={() => {
+                  setShowRemoveSnapsConfirmation(false);
+                  removeSnaps();
+                }}
+              >
+                Exclude snap{snapsToRemove.length > 1 ? "s" : ""}
+              </Button>
+            </>
+          }
+        >
+          {snapsToRemove.length > 1 && (
+            <ul>
+              {snapsToRemove.map((snapToRemove) => (
+                <li key={snapToRemove.id}>
+                  <strong>{snapToRemove.name}</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p>
+            {snapsToRemove.length > 1 ? "These snaps" : "This snap"} can still
+            be included again in this store.
+          </p>
+        </Modal>
+      )}
     </>
   );
 }
